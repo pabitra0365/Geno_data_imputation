@@ -1,0 +1,103 @@
+---
+title: "Data imputation"
+author: "Pabitra"
+date: "2024-03-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+###This document provides a detailed walkthrough of the process of imputing missing genotypic data using two methods: mean imputation based on allele frequencies and Beagle imputation. The genotype data is obtained from a VCF (Variant Call Format) file, for spring wheat diverse panelthat has been filtered once by removing missing or monomorphic markers
+
+
+##Load Necessary Libraries:  We begin by loading the necessary libraries for handling genetic data and visualizations. The gaston library is used to handle VCF files and create matrices, while ggplot2 is used for data visualization.
+
+```{r}
+
+library(gaston)  # For genetic data manipulation
+library(ggplot2) # For visualizations
+
+```
+
+
+##Read data: The VCF file, containing the genotype data for various lines, is read into R using the read.vcf() function from the gaston package. This step reads the file and loads the genotype information into a bed.matrix object, which will be used for further processing.
+
+```{r}
+# Read in VCF file (pre-filtered to exclude monomorphic markers)
+genotypeData <- read.vcf("~/Documents/Prediction/Imputation/Gp502springwheat.vcf.gz", convert.chr = FALSE)
+
+# Display the first few rows of SNP information
+head(genotypeData@snps)
+
+```
+
+#Convert VCF Data to a Matrix
+
+```{r}
+
+# Convert the bed.matrix object to a standard matrix
+genotypeMatrix <- as.matrix(genotypeData)
+
+# Display a portion of the matrix
+genotypeMatrix[1:10, 1:10]
+
+```
+
+
+##Check the Proportion of Missing Data: Before proceeding with imputation, it's important to quantify the amount of missing data in the genotype matrix. This step calculates the proportion of missing values.
+
+```{r}
+
+# Calculate the proportion of missing data in the genotype matrix
+missingProportion <- length(genotypeMatrix[is.na(genotypeMatrix)]) / length(genotypeMatrix)
+missingProportion
+
+#About 1% of the data is missing. This is a small amount, but imputation will still help ensure the data is complete for further analysis.
+
+
+
+```
+
+##original data without imputation
+
+```{r}
+
+# calculate the relationship matrix without imputation
+noImpute <- ((genotypeMatrix - 1) %*% t(genotypeMatrix - 1)) / ncol(genotypeMatrix)
+
+# Display a portion of the relationship matrix
+noImpute[1:10, 1:10]
+
+```
+
+
+###Mean Imputation Based on Allele Frequency
+
+#To impute missing values, we replace them with the mean of the available allele frequencies for each SNP. This method assumes that missing data can be approximated by the most common allele observed for that SNP.
+
+```{r}
+
+# Impute missing values using mean allele frequency
+for (col in 1:ncol(genotypeMatrix)) {
+  alleleVec <- genotypeMatrix[, col]
+  alleleVec[is.na(alleleVec)] <- mean(alleleVec, na.rm = TRUE)  # Replace NAs with column mean
+  genotypeMatrix[, col] <- alleleVec
+}
+
+
+```
+
+##Check Proportion of Missing Data After Imputation: After imputation, we recheck the proportion of missing data to confirm that all missing values have been replaced.
+
+```{r}
+
+# Verify that all missing values have been imputed
+length(genotypeMatrix[is.na(genotypeMatrix)]) / length(genotypeMatrix)
+
+##No missing data remains after mean imputation.
+```
+
+
+
